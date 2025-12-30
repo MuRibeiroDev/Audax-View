@@ -2,258 +2,46 @@
 Servidor Flask para controle das TVs Samsung via interface web
 """
 
-from flask import Flask, jsonify, render_template
-import time
+import sys
 import threading
 import requests
+import schedule
+import time
+import importlib
+from pathlib import Path
+from flask import Flask, jsonify, render_template, request
 
+# Importações locais
+import config
+from config import TVS, WEBHOOK_URL, HOST, PORT, DEBUG, TOKEN_AUTO_RENOVACAO, TOKEN_HORARIO_RENOVACAO
+from utils import log, LOGS, LOGS_LOCK
+from controllers import SmartThingsTV
+from utils.renovador_token import RenovadorTokenSmartThings
+from sequences import (
+    sequencia_ti,
+    sequencia_atlas,
+    sequencia_juridico,
+    sequencia_operacao1_tv1,
+    sequencia_operacao2_tv2,
+    sequencia_tv1_painel_tv3
+)
+
+# Inicializa o Flask
 app = Flask(__name__)
 
-# Token configurado
-ACCESS_TOKEN = "4ee52f3e-0e98-4469-a1a0-71ca0c85c0f6"
+# Configuração do renovador de token
+TOKEN_CONFIG_FILE = Path(__file__).parent / 'token_config.json'
+renovador_token = RenovadorTokenSmartThings()
+token_thread = None
 
-# IDs das TVs
-TVS = {
-    "TI01": "98c6e6f8-95b4-cebd-58c3-89b0c8914c98",
-    "TI02": "b836e65f-4c6f-0019-ae1b-26dc4f08f634",
-    "TI03": "9aec8b23-27bd-cbf5-ed28-36ae181bf20d",
-    "TV-ATLAS": "65a53ea8-334d-1510-94c0-915fbbd2ceb1REMOVERDEPOISDAREUNIAO",
-    "TV-JURIDICO": "d339553c-5dc4-e28d-e0f2-e188e81b0fca"
-}
 
-# ========== CLASSE SMARTTHINGS TV ==========
-class SmartThingsTV:
-    def __init__(self, access_token):
-        self.access_token = access_token
-        self.base_url = "https://api.smartthings.com/v1"
-        self.headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
-    
-    def obter_status(self, device_id):
-        """Obtém o status atual do dispositivo"""
-        url = f"{self.base_url}/devices/{device_id}/status"
-        response = requests.get(url, headers=self.headers)
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            return None
-
-    def obter_saude(self, device_id):
-        """Obtém a saúde (conexão) do dispositivo"""
-        url = f"{self.base_url}/devices/{device_id}/health"
-        response = requests.get(url, headers=self.headers)
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            return None
-    
-    def _executar_comando_com_retry(self, device_id, capability, command, arguments=None, max_tentativas=3, delay_retry=2):
-        """Executa um comando com retry automático em caso de erro"""
-        delays = delay_retry if isinstance(delay_retry, list) else [delay_retry] * (max_tentativas - 1)
-        
-        for tentativa in range(1, max_tentativas + 1):
-            url = f"{self.base_url}/devices/{device_id}/commands"
-            
-            payload = {
-                "commands": [
-                    {
-                        "component": "main",
-                        "capability": capability,
-                        "command": command
-                    }
-                ]
-            }
-            
-            if arguments:
-                payload["commands"][0]["arguments"] = arguments
-            
-            response = requests.post(url, headers=self.headers, json=payload)
-            
-            if response.status_code == 200:
-                print(f"✓ Comando '{command}' executado com sucesso")
-                return True
-            else:
-                print(f"✗ Tentativa {tentativa}/{max_tentativas} falhou: {response.status_code}")
-                
-                if tentativa < max_tentativas:
-                    delay = delays[tentativa - 1] if tentativa - 1 < len(delays) else delays[-1]
-                    print(f"   Aguardando {delay}s antes de tentar novamente...")
-                    time.sleep(delay)
-                else:
-                    print(f"   Erro final após {max_tentativas} tentativas")
-        
-        return False
-
-# ========== SEQUÊNCIAS DAS TVS ==========
-
-def sequencia_ti(tv, tv_id, nome_tv):
-    """Sequência para TVs TI01, TI02 e TI03"""
-    try:
-        print(f"\n[{nome_tv}] Iniciando sequência...")
-        
-        tv._executar_comando_com_retry(tv_id, "switch", "on", max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print(f"[{nome_tv}] SETA ESQUERDA")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["LEFT", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print(f"[{nome_tv}] SETA CIMA (1/2)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["UP", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print(f"[{nome_tv}] SETA CIMA (2/2)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["UP", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print(f"[{nome_tv}] ENTER")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["OK", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print(f"[{nome_tv}] SETA BAIXO")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["DOWN", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print(f"[{nome_tv}] ENTER")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["OK", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print(f"[{nome_tv}] ENTER")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["OK", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        
-        print(f"[{nome_tv}] Sequência finalizada!")
-        return True
-    except Exception as e:
-        print(f"[{nome_tv}] ERRO: {e}")
-        return False
-
-def sequencia_atlas(tv, tv_id):
-    """Sequência para TV-ATLAS"""
-    try:
-        print("\n[TV-ATLAS] Iniciando sequência...")
-        
-        tv._executar_comando_com_retry(tv_id, "switch", "on", max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(5)
-        
-        print("[TV-ATLAS] BOTÃO HOME")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["HOME", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-ATLAS] SETA ESQUERDA")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["LEFT", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-ATLAS] SETA BAIXO")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["DOWN", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-ATLAS] SETA DIREITA (1/3)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["RIGHT", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-ATLAS] SETA DIREITA (2/3)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["RIGHT", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-ATLAS] SETA DIREITA (3/3)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["RIGHT", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-ATLAS] ENTER")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["OK", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-ATLAS] SETA DIREITA")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["RIGHT", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-ATLAS] ENTER")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["OK", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        
-        print("[TV-ATLAS] Sequência finalizada!")
-        return True
-    except Exception as e:
-        print(f"[TV-ATLAS] ERRO: {e}")
-        return False
-
-def sequencia_juridico(tv, tv_id):
-    """Sequência para TV-JURIDICO"""
-    try:
-        print("\n[TV-JURIDICO] Iniciando sequência...")
-        
-        print("[TV-JURIDICO] Ligando TV...")
-        tv._executar_comando_com_retry(tv_id, "switch", "on", max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(5)
-        
-        print("[TV-JURIDICO] ENTER (1)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["OK", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-JURIDICO] SETA DIREITA (1/2)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["RIGHT", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-JURIDICO] SETA DIREITA (2/2)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["RIGHT", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-JURIDICO] ENTER (2)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["OK", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-JURIDICO] SETA BAIXO (1/3)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["DOWN", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-JURIDICO] SETA BAIXO (2/3)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["DOWN", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-JURIDICO] SETA BAIXO (3/3)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["DOWN", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-JURIDICO] ENTER (3)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["OK", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-JURIDICO] SETA BAIXO (1/2)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["DOWN", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-JURIDICO] SETA BAIXO (2/2)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["DOWN", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-JURIDICO] ENTER (4)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["OK", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-JURIDICO] SETA DIREITA")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["RIGHT", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-JURIDICO] ENTER (5)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["OK", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        time.sleep(3)
-        
-        print("[TV-JURIDICO] ENTER (6)")
-        tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["OK", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
-        
-        print("[TV-JURIDICO] Sequência finalizada!")
-        return True
-    except Exception as e:
-        print(f"[TV-JURIDICO] ERRO: {e}")
-        return False
+# ========== ROTAS ==========
 
 @app.route('/')
 def index():
     """Página principal"""
     return render_template('index.html')
+
 
 @app.route('/api/tvs')
 def listar_tvs():
@@ -262,6 +50,80 @@ def listar_tvs():
         "success": True,
         "tvs": list(TVS.keys())
     })
+
+
+@app.route('/api/token/config', methods=['GET', 'POST'])
+def config_token():
+    """Configura horário de renovação do token"""
+    import json
+    from datetime import datetime
+    
+    if request.method == 'POST':
+        data = request.get_json()
+        horario = data.get('horario', '02:00')
+        
+        try:
+            # Valida formato
+            datetime.strptime(horario, "%H:%M")
+            
+            # Salva configuração
+            config = {'horario': horario, 'ativo': True}
+            with open(TOKEN_CONFIG_FILE, 'w') as f:
+                json.dump(config, f, indent=4)
+            
+            # Reinicia agendamento
+            iniciar_renovacao_token(horario)
+            
+            log(f"[TOKEN] Renovação agendada para {horario}", "SUCCESS")
+            return jsonify({
+                "success": True,
+                "message": f"Renovação agendada para {horario}"
+            })
+        except ValueError:
+            return jsonify({
+                "success": False,
+                "message": "Horário inválido! Use formato HH:MM"
+            }), 400
+    
+    # GET: retorna configuração atual
+    try:
+        import json
+        if TOKEN_CONFIG_FILE.exists():
+            with open(TOKEN_CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+        else:
+            config = {'horario': '02:00', 'ativo': False}
+        return jsonify({"success": True, "config": config})
+    except:
+        return jsonify({"success": True, "config": {'horario': '02:00', 'ativo': False}})
+
+
+@app.route('/api/token/renovar', methods=['POST'])
+def renovar_token_manual():
+    """Executa renovação manual do token"""
+    def executar():
+        try:
+            log("[TOKEN] Iniciando renovação manual...", "INFO")
+            resultado = renovador_token.renovar()
+            if resultado:
+                # Recarrega o módulo config para pegar o novo token
+                importlib.reload(config)
+                log("[TOKEN] Renovação concluída e configuração recarregada!", "SUCCESS")
+                log(f"[TOKEN] Novo token ativo: {config.ACCESS_TOKEN[:20]}...", "INFO")
+            else:
+                log("[TOKEN] Erro na renovação", "ERROR")
+        except Exception as e:
+            log(f"[TOKEN] Erro: {e}", "ERROR")
+    
+    thread = threading.Thread(target=executar)
+    thread.daemon = True
+    thread.start()
+    
+    return jsonify({
+        "success": True,
+        "message": "Renovação iniciada em segundo plano"
+    })
+
 
 @app.route('/api/executar/<tv_nome>', methods=['GET', 'POST'])
 def executar_sequencia(tv_nome):
@@ -275,7 +137,8 @@ def executar_sequencia(tv_nome):
         }), 404
     
     def executar():
-        tv = SmartThingsTV(ACCESS_TOKEN)
+        # Usa o token atual do módulo config
+        tv = SmartThingsTV(config.ACCESS_TOKEN)
         tv_id = TVS[tv_nome]
         
         # Verifica o status atual da TV
@@ -291,18 +154,17 @@ def executar_sequencia(tv_nome):
         
         # Toggle: se está ligada, desliga; se está desligada, executa sequência
         if is_on:
-            print(f"[{tv_nome}] Desligando TV...")
+            log(f"[{tv_nome}] Desligando TV...")
             tv._executar_comando_com_retry(tv_id, "switch", "off", max_tentativas=3, delay_retry=[10, 15])
         else:
             # Envia webhook para ligar a máquina virtual
-            print(f"[{tv_nome}] Enviando webhook para ligar máquina virtual...")
+            log(f"[{tv_nome}] Enviando webhook para ligar máquina virtual...")
             try:
-                webhook_url = "http://172.16.30.10:5679/webhook-test/ligatvsmurilo"
                 webhook_data = {"tv": tv_nome}
-                response = requests.post(webhook_url, json=webhook_data, timeout=5)
-                print(f"[{tv_nome}] Webhook enviado: {response.status_code}")
+                response = requests.post(WEBHOOK_URL, json=webhook_data, timeout=5)
+                log(f"[{tv_nome}] Webhook enviado: {response.status_code}", "SUCCESS")
             except Exception as e:
-                print(f"[{tv_nome}] Erro ao enviar webhook: {e}")
+                log(f"[{tv_nome}] Erro ao enviar webhook: {e}", "ERROR")
             
             # Executa a sequência específica para ligar e configurar
             if tv_nome in ["TI01", "TI02", "TI03"]:
@@ -311,6 +173,12 @@ def executar_sequencia(tv_nome):
                 sequencia_atlas(tv, tv_id)
             elif tv_nome == "TV-JURIDICO":
                 sequencia_juridico(tv, tv_id)
+            elif tv_nome == "OPERAÇÃO-1---TV1":
+                sequencia_operacao1_tv1(tv, tv_id)
+            elif tv_nome == "OPERAÇÃO-2---TV2":
+                sequencia_operacao2_tv2(tv, tv_id)
+            elif tv_nome == "TV-1-PAINEL---TV3":
+                sequencia_tv1_painel_tv3(tv, tv_id)
     
     # Executa em thread separada para não bloquear a resposta
     thread = threading.Thread(target=executar)
@@ -324,11 +192,12 @@ def executar_sequencia(tv_nome):
         "mensagem": f"Comando enviado para {tv_nome}"
     })
 
+
 @app.route('/api/executar/todas')
 def executar_todas():
     """Executa a sequência de todas as TVs simultaneamente"""
     def executar_todas_threads():
-        tv = SmartThingsTV(ACCESS_TOKEN)
+        tv = SmartThingsTV(config.ACCESS_TOKEN)
         threads = []
         
         # TI01
@@ -359,7 +228,7 @@ def executar_todas():
         for t in threads:
             t.join()
         
-        print("\nTodas as sequências finalizadas!")
+        log("Todas as sequências finalizadas!", "SUCCESS")
     
     # Executa em thread separada
     thread = threading.Thread(target=executar_todas_threads)
@@ -371,6 +240,33 @@ def executar_todas():
         "message": "Sequências de todas as TVs iniciadas"
     })
 
+
+@app.route('/api/logs')
+def obter_logs():
+    """Retorna os logs do sistema"""
+    with LOGS_LOCK:
+        logs_list = list(LOGS)
+    
+    return jsonify({
+        "success": True,
+        "logs": logs_list,
+        "total": len(logs_list)
+    })
+
+
+@app.route('/api/logs/limpar', methods=['POST'])
+def limpar_logs():
+    """Limpa todos os logs"""
+    with LOGS_LOCK:
+        LOGS.clear()
+    log("Logs limpos pelo usuário", "INFO")
+    
+    return jsonify({
+        "success": True,
+        "message": "Logs limpos com sucesso"
+    })
+
+
 @app.route('/api/status/<tv_nome>')
 def obter_status_tv(tv_nome):
     """Obtém o status (ligada/desligada) de uma TV específica"""
@@ -380,7 +276,7 @@ def obter_status_tv(tv_nome):
             "message": f"TV {tv_nome} não encontrada"
         }), 404
     
-    tv = SmartThingsTV(ACCESS_TOKEN)
+    tv = SmartThingsTV(config.ACCESS_TOKEN)
     tv_id = TVS[tv_nome]
     status_data = tv.obter_status(tv_id)
     
@@ -398,26 +294,30 @@ def obter_status_tv(tv_nome):
         "is_on": is_on
     })
 
+
 @app.route('/api/status/todas')
 def obter_status_todas():
     """Obtém o status de todas as TVs"""
-    tv = SmartThingsTV(ACCESS_TOKEN)
+    tv = SmartThingsTV(config.ACCESS_TOKEN)
     resultados = {}
     
     def check_status(nome, id):
         # Verifica status (ligada/desligada)
         status_data = tv.obter_status(id)
         is_on = False
+        is_online = False
         current_app = None
         input_source = None
         volume = None
         
         if status_data:
+            is_online = True  # Se conseguiu obter status, está online
             try:
                 switch_value = status_data['components']['main']['switch']['switch']['value']
                 is_on = (switch_value == 'on')
-            except (KeyError, TypeError):
-                pass
+                log(f"[{nome}] Switch: {switch_value}, Ligada: {is_on}", "INFO")
+            except (KeyError, TypeError) as e:
+                log(f"[{nome}] Erro ao ler switch status: {e}", "ERROR")
             
             # App/Canal atual
             try:
@@ -436,12 +336,8 @@ def obter_status_todas():
                 volume = status_data['components']['main']['audioVolume']['volume']['value']
             except (KeyError, TypeError):
                 pass
-        
-        # Verifica saúde (online/offline)
-        health_data = tv.obter_saude(id)
-        is_online = False
-        if health_data:
-            is_online = (health_data.get('state') == 'ONLINE')
+        else:
+            log(f"[{nome}] Não foi possível obter status - TV offline", "WARNING")
 
         resultados[nome] = {
             "is_on": is_on,
@@ -465,7 +361,71 @@ def obter_status_todas():
         "status": resultados
     })
 
+
+# ========== FUNÇÕES DE RENOVAÇÃO DE TOKEN ==========
+
+def iniciar_renovacao_token(horario='02:00'):
+    """Inicia thread de renovação automática de token"""
+    global token_thread
+    
+    # Cancela agendamentos anteriores
+    schedule.clear()
+    
+    # Função de renovação com reload do config
+    def renovar_e_recarregar():
+        log("[TOKEN] Iniciando renovação automática...", "INFO")
+        resultado = renovador_token.renovar()
+        if resultado:
+            # Recarrega o módulo config para pegar o novo token
+            importlib.reload(config)
+            log("[TOKEN] Token renovado e configuração recarregada!", "SUCCESS")
+            log(f"[TOKEN] Novo token: {config.ACCESS_TOKEN[:20]}...", "INFO")
+        else:
+            log("[TOKEN] Falha na renovação automática", "ERROR")
+        return resultado
+    
+    # Agenda nova renovação
+    schedule.every().day.at(horario).do(renovar_e_recarregar)
+    log(f"[TOKEN] Renovação agendada para {horario}", "SUCCESS")
+    
+    # Thread de agendamento
+    def run_schedule():
+        while True:
+            schedule.run_pending()
+            time.sleep(60)
+    
+    if token_thread is None or not token_thread.is_alive():
+        token_thread = threading.Thread(target=run_schedule, daemon=True)
+        token_thread.start()
+
+
+# ========== INICIALIZAÇÃO ==========
+
 if __name__ == '__main__':
-    print("Iniciando servidor web na porta 5000...")
-    print("Acesse: http://localhost:5000")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    import json
+    sys.stdout.reconfigure(line_buffering=True)
+    
+    log("=== Sistema de Controle de TVs Samsung ===", "INFO")
+    log("Iniciando servidor web na porta 5000...", "INFO")
+    log("Acesse: http://localhost:5000", "INFO")
+    log("Logs disponíveis em: http://localhost:5000/api/logs", "INFO")
+    
+    # Lista de TVs disponíveis
+    print("\n" + "="*50)
+    print("📺 TVS DISPONÍVEIS NA API:")
+    print("="*50)
+    for i, (nome, device_id) in enumerate(TVS.items(), 1):
+        print(f"  {i}. {nome:<15} → {device_id}")
+    print("="*50 + "\n")
+    
+    # Sistema de renovação automática de token
+    if TOKEN_AUTO_RENOVACAO:
+        try:
+            iniciar_renovacao_token(TOKEN_HORARIO_RENOVACAO)
+            log(f"[TOKEN] Sistema de renovação automática ativado ({TOKEN_HORARIO_RENOVACAO})", "SUCCESS")
+        except Exception as e:
+            log(f"[TOKEN] Erro ao iniciar renovação automática: {e}", "ERROR")
+    else:
+        log("[TOKEN] Renovação automática desativada (config.py)", "INFO")
+    
+    app.run(debug=DEBUG, host=HOST, port=PORT, use_reloader=False)
