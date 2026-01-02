@@ -118,41 +118,74 @@ class TVController:
     
     def toggle_todas(self, enviar_webhook: bool = True) -> bool:
         """
-        Executa toggle em todas as TVs em blocos de 2 com intervalo de 20s
+        Executa toggle em todas as TVs em blocos de 2 com execução intercalada e intervalo de 10s
         
         Args:
             enviar_webhook: Se True, envia webhook para ligar BIs. Se False, apenas liga TVs
         """
         def executar_todas():
-            tvs = list(self.tv_service.obter_tvs().keys())
-            total_tvs = len(tvs)
+            # Ordem específica das TVs (TVs de reunião por último)
+            ordem_tvs = [
+                "Operação 1 - TV1", "Operação 2 - TV2",
+                "TV 1 Painel - TV3", "TV 2 Painel - TV4",
+                "TV 3 Painel - TV5", "TV 4 Painel - TV6",
+                "GESTÃO-INDUSTRIA", "ANTIFRAUDE",
+                "CONTROLADORIA", "FINANCEIRO",
+                "COBRANÇA", "TV-JURIDICO",
+                "TVCADASTRO", "TI01",
+                "TI02", "TI03"
+            ]
+            
+            # Adiciona TVs de reunião no final
+            tvs_disponiveis = self.tv_service.obter_tvs()
+            tvs_reuniao = [nome for nome in tvs_disponiveis.keys() 
+                          if "REUNIÃO" in nome.upper() or "REUNIAO" in nome.upper() 
+                          or nome in ["TV-ATLAS", "TV-DIA D", "TV-MOSSAD", "TV-GEO-FOREST"]]
+            
+            # Filtra apenas TVs que existem no sistema
+            tvs_ordenadas = [tv for tv in ordem_tvs if tv in tvs_disponiveis]
+            tvs_ordenadas.extend(tvs_reuniao)
+            
+            total_tvs = len(tvs_ordenadas)
             
             if enviar_webhook:
-                log(f"Iniciando toggle de {total_tvs} TVs em blocos de 2 (COM webhook para BIs)...", "INFO")
+                log(f"Iniciando toggle de {total_tvs} TVs em blocos de 2 INTERCALADOS (COM webhook para BIs)...", "INFO")
             else:
-                log(f"Iniciando toggle de {total_tvs} TVs em blocos de 2 (SEM webhook - BIs já ligados)...", "INFO")
+                log(f"Iniciando toggle de {total_tvs} TVs em blocos de 2 INTERCALADOS (SEM webhook - BIs já ligados)...", "INFO")
             
-            # Processa em blocos de 2
+            # Processa em blocos de 2 com execução intercalada
             for i in range(0, total_tvs, 2):
-                bloco = tvs[i:i+2]
+                bloco = tvs_ordenadas[i:i+2]
                 bloco_num = (i // 2) + 1
                 
-                log(f"[BLOCO {bloco_num}] Processando TVs: {', '.join(bloco)}", "INFO")
+                log(f"[BLOCO {bloco_num}] Processando TVs INTERCALADAS: {', '.join(bloco)}", "INFO")
                 
-                threads = []
-                for tv_nome in bloco:
-                    t = threading.Thread(target=self._toggle_tv_interno, args=(tv_nome, enviar_webhook))
-                    threads.append(t)
-                    t.start()
+                if len(bloco) == 2:
+                    # Execução intercalada: TV1 comando -> 10s -> TV2 comando -> 10s -> TV1 próximo -> ...
+                    tv1, tv2 = bloco[0], bloco[1]
+                    
+                    # Inicia threads para ambas as TVs
+                    thread1 = threading.Thread(target=self._toggle_tv_interno, args=(tv1, enviar_webhook))
+                    thread2 = threading.Thread(target=self._toggle_tv_interno, args=(tv2, enviar_webhook))
+                    
+                    thread1.start()
+                    log(f"[BLOCO {bloco_num}] {tv1} iniciada, aguardando 10s...", "INFO")
+                    time.sleep(10)
+                    
+                    thread2.start()
+                    log(f"[BLOCO {bloco_num}] {tv2} iniciada, aguardando 10s...", "INFO")
+                    time.sleep(10)
+                    
+                    # Aguarda ambas finalizarem
+                    thread1.join()
+                    thread2.join()
+                else:
+                    # Apenas 1 TV no bloco (última TV ímpar)
+                    thread = threading.Thread(target=self._toggle_tv_interno, args=(bloco[0], enviar_webhook))
+                    thread.start()
+                    thread.join()
                 
-                # Aguarda threads do bloco atual terminarem
-                for t in threads:
-                    t.join()
-                
-                # Aguarda 20 segundos antes do próximo bloco (exceto no último)
-                if i + 2 < total_tvs:
-                    log(f"[BLOCO {bloco_num}] Concluído. Aguardando 20 segundos...", "SUCCESS")
-                    time.sleep(20)
+                log(f"[BLOCO {bloco_num}] Concluído!", "SUCCESS")
             
             log("Todas as sequências finalizadas!", "SUCCESS")
         
