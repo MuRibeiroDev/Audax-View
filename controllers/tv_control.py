@@ -53,3 +53,10 @@ def pressionar_direita(tv, tv_id, nome_tv, delay=5):
     log(f"[{nome_tv}] SETA DIREITA")
     tv._executar_comando_com_retry(tv_id, "samsungvd.remoteControl", "send", ["RIGHT", "PRESS_AND_RELEASED"], max_tentativas=3, delay_retry=[10, 15])
     time.sleep(delay)
+
+
+def desligar_tv(tv, tv_id, nome_tv, delay=2):
+    """Desliga a TV"""
+    log(f"[{nome_tv}] Desligando TV...")
+    tv._executar_comando_com_retry(tv_id, "switch", "off", max_tentativas=3, delay_retry=[10, 15])
+    time.sleep(delay)

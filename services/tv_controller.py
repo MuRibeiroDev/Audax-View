@@ -171,6 +171,94 @@ class TVController:
             log(f"[{tv_nome}] Erro na reconexão: {e}", "ERROR")
             return False
     
+    def desligar_tvs_exceto_reuniao(self) -> dict:
+        """
+        Desliga todas as TVs exceto as de reunião, 2 por vez com intervalo de 10 segundos.
+        
+        Returns:
+            dict: Relatório com TVs desligadas, ignoradas e erros
+        """
+        log("="*80, "INFO")
+        log("🔌 INICIANDO DESLIGAMENTO EM LOTE (exceto reuniões)", "INFO")
+        log("="*80, "INFO")
+        
+        # Filtra TVs excluindo as de reunião
+        tvs_para_desligar = []
+        tvs_ignoradas = []
+        
+        for nome_tv, info in self.tv_service.obter_tvs().items():
+            setor = info.get('setor', '').lower()
+            if setor in ['reunião', 'reuniao']:
+                tvs_ignoradas.append(nome_tv)
+                log(f"⏭️  [{nome_tv}] Ignorada (setor: {info.get('setor')})", "WARNING")
+            else:
+                tvs_para_desligar.append(nome_tv)
+        
+        log(f"\n📊 Total de TVs: {len(tvs_para_desligar) + len(tvs_ignoradas)}", "INFO")
+        log(f"🔴 TVs para desligar: {len(tvs_para_desligar)}", "INFO")
+        log(f"⏭️  TVs ignoradas (reunião): {len(tvs_ignoradas)}", "INFO")
+        log("", "INFO")
+        
+        # Desliga 2 TVs por vez
+        tvs_desligadas = []
+        tvs_com_erro = []
+        
+        from controllers.tv_control import desligar_tv
+        
+        for i in range(0, len(tvs_para_desligar), 2):
+            batch = tvs_para_desligar[i:i+2]
+            threads = []
+            
+            log(f"\n🔄 Lote {i//2 + 1}/{(len(tvs_para_desligar) + 1)//2}", "INFO")
+            log("-" * 60, "INFO")
+            
+            for nome_tv in batch:
+                tv_info = self.tv_service.obter_tv(nome_tv)
+                tv_id = tv_info["id"] if isinstance(tv_info, dict) else tv_info
+                
+                def desligar_thread(nome, tv_id):
+                    try:
+                        tv = SmartThingsTV(config.ACCESS_TOKEN)
+                        desligar_tv(tv, tv_id, nome, delay=1)
+                        tvs_desligadas.append(nome)
+                        log(f"✅ [{nome}] Desligada com sucesso", "SUCCESS")
+                    except Exception as e:
+                        tvs_com_erro.append(nome)
+                        log(f"❌ [{nome}] Erro ao desligar: {e}", "ERROR")
+                
+                thread = threading.Thread(target=desligar_thread, args=(nome_tv, tv_id))
+                thread.daemon = True
+                threads.append(thread)
+                thread.start()
+            
+            # Aguarda threads terminarem
+            for thread in threads:
+                thread.join()
+            
+            # Intervalo de 10 segundos entre lotes (exceto no último)
+            if i + 2 < len(tvs_para_desligar):
+                log("\n⏱️  Aguardando 10 segundos antes do próximo lote...", "INFO")
+                time.sleep(10)
+        
+        # Relatório final
+        log("\n" + "="*80, "INFO")
+        log("📊 RELATÓRIO FINAL", "INFO")
+        log("="*80, "INFO")
+        log(f"✅ TVs desligadas com sucesso: {len(tvs_desligadas)}", "SUCCESS")
+        log(f"❌ TVs com erro: {len(tvs_com_erro)}", "ERROR")
+        log(f"⏭️  TVs ignoradas (reunião): {len(tvs_ignoradas)}", "WARNING")
+        log("="*80, "INFO")
+        
+        return {
+            "success": True,
+            "desligadas": tvs_desligadas,
+            "ignoradas": tvs_ignoradas,
+            "erros": tvs_com_erro,
+            "total_desligadas": len(tvs_desligadas),
+            "total_ignoradas": len(tvs_ignoradas),
+            "total_erros": len(tvs_com_erro)
+        }
+    
     def toggle_todas(self, enviar_webhook: bool = True) -> bool:
         """
         Executa toggle em todas as TVs em blocos de 2 com execução intercalada e intervalo de 10s

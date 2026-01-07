@@ -122,6 +122,41 @@ async function religarAllTVs() {
     }
 }
 
+// Desligar todas as TVs exceto as de reunião
+async function desligarTVsExcetoReunioes() {
+    // Confirmar ação
+    if (!confirm('Desligar todas as TVs exceto as de reunião?\n\nSerão desligadas 2 por vez com intervalo de 10 segundos.')) {
+        return;
+    }
+    
+    // Marcar apenas TVs que não são de reunião como loading
+    document.querySelectorAll('.tv-card').forEach(card => {
+        const setorSpan = card.querySelector('.tv-setor');
+        const setor = setorSpan.getAttribute('data-original-setor') || setorSpan.textContent;
+        
+        if (!setor.toLowerCase().includes('reunião') && !setor.toLowerCase().includes('reuniao')) {
+            const powerIcon = card.querySelector('.power-icon');
+            if (powerIcon) {
+                powerIcon.classList.remove('on', 'off');
+                powerIcon.classList.add('loading');
+            }
+        }
+    });
+    
+    try {
+        const response = await fetch(`/api/desligar/exceto-reuniao`, { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success) {
+            // Aguarda tempo suficiente para o desligamento em lote completar
+            setTimeout(() => checkAllStatus(), 15000);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        checkAllStatus();
+    }
+}
+
 // Verifica status do token
 async function verificarStatusToken() {
     try {

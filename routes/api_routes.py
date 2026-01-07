@@ -101,6 +101,18 @@ def create_routes(tv_service, tv_controller, scheduler_service, renovador_token)
             "message": "Sequências de todas as TVs iniciadas (SEM webhook - BIs já ligados)"
         })
     
+    @api.route('/desligar/exceto-reuniao', methods=['GET', 'POST'])
+    def desligar_exceto_reuniao():
+        """Desliga todas as TVs exceto as de reunião, 2 por vez com intervalo de 10 segundos"""
+        thread = threading.Thread(target=tv_controller.desligar_tvs_exceto_reuniao)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            "success": True,
+            "message": "Desligamento em lote iniciado (exceto TVs de reunião)"
+        })
+    
     @api.route('/status/<tv_nome>')
     def obter_status_tv(tv_nome):
         """Obtém o status (ligada/desligada) de uma TV específica"""

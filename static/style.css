@@ -366,6 +366,15 @@ body {
     transform: translateY(-1px);
 }
 
+.btn-danger {
+    background: #e74c3c;
+}
+
+.btn-danger:hover {
+    background: #c0392b;
+    transform: translateY(-1px);
+}
+
 .btn-all:active {
     transform: translateY(0);
 }

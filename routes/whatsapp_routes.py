@@ -149,6 +149,35 @@ def create_whatsapp_routes(tv_service, tv_controller, whatsapp_service):
             
             log(f"[WhatsApp] Comando !ligar {tv_nome} recebido de {numero}", "INFO")
         
+        # Comando: !desligartvs (exceto reuniões)
+        elif comando_lower == '!desligartvs':
+            def executar_desligar():
+                whatsapp_service.enviar_mensagem_autorizado("🔴 Iniciando desligamento em lote...\n\n✅ Todas as TVs serão desligadas\n⏭️ Exceto TVs de reunião\n\nSerão desligadas em blocos de 2 TVs com intervalo de 10 segundos entre cada bloco.")
+                
+                resultado = tv_controller.desligar_tvs_exceto_reuniao()
+                
+                if resultado.get('success'):
+                    total_desligadas = resultado.get('total_desligadas', 0)
+                    total_ignoradas = resultado.get('total_ignoradas', 0)
+                    total_erros = resultado.get('total_erros', 0)
+                    
+                    mensagem = "✅ Desligamento concluído!\n\n"
+                    mensagem += f"🔴 TVs desligadas: {total_desligadas}\n"
+                    mensagem += f"⏭️ TVs ignoradas (reunião): {total_ignoradas}\n"
+                    
+                    if total_erros > 0:
+                        mensagem += f"❌ Erros: {total_erros}\n"
+                    
+                    whatsapp_service.enviar_mensagem_autorizado(mensagem)
+                else:
+                    whatsapp_service.enviar_mensagem_autorizado("❌ Erro ao iniciar o desligamento.")
+            
+            thread = threading.Thread(target=executar_desligar)
+            thread.daemon = True
+            thread.start()
+            
+            log(f"[WhatsApp] Comando !desligartvs recebido de {numero}", "INFO")
+        
         # Comando: !status
         elif comando_lower == '!status':
             def executar_status():
@@ -192,6 +221,9 @@ def create_whatsapp_routes(tv_service, tv_controller, whatsapp_service):
 !religartvs - Liga apenas TVs (BIs já ligados)
 !ligar <nome> - Liga uma TV específica
 
+*Desligar TVs:*
+!desligartvs - Desliga todas exceto reuniões
+
 *Informações:*
 !status - Status do sistema
 !listartvs - Lista todas as TVs
@@ -202,6 +234,7 @@ def create_whatsapp_routes(tv_service, tv_controller, whatsapp_service):
 ⚠️ *Importante:*
 • Use !ligartvs na primeira vez do dia
 • Use !religartvs nas próximas vezes
+• !desligartvs ignora TVs de reunião
 
 Exemplo: !ligar TI01"""
             
