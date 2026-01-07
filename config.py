@@ -3,7 +3,7 @@ Configurações do sistema de controle de TVs Samsung
 """
 
 # Token de acesso SmartThings
-ACCESS_TOKEN = "cd5b0c4d-4d82-4f6b-9301-9d11464dfebe"
+ACCESS_TOKEN = "cf754a4c-a3c6-4331-b8ab-d0177dca0504"
 
 # AVISO: Se você está recebendo erros 401, o token pode ter expirado.
 # Para gerar um novo token:

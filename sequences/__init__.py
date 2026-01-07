@@ -14,7 +14,8 @@ from .tv_sequences import (
     sequencia_gestao_industria,
     sequencia_antifraude,
     sequencia_controladoria,
-    sequencia_cobranca
+    sequencia_cobranca,
+    sequencia_cadastro
 )
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     'sequencia_gestao_industria',
     'sequencia_antifraude',
     'sequencia_controladoria',
-    'sequencia_cobranca'
+    'sequencia_cobranca',
+    'sequencia_cadastro'
 ]
 

@@ -46,13 +46,29 @@ class SchedulerService:
             setores_ignorar = config.KEEP_ALIVE_IGNORE_SETORES
         
         def executar_keep_alive():
+            # Importa aqui para evitar importação circular
+            from .tv_controller import TVController
+            
+            # Verifica se há sequências em execução
+            if TVController.alguma_sequencia_em_execucao():
+                log("[KEEP-ALIVE] Pulando ciclo - há sequências em execução no momento", "WARNING")
+                return
+            
             log("[KEEP-ALIVE] Iniciando ciclo de verificação...", "INFO")
             tv_client = SmartThingsTV(config.ACCESS_TOKEN)
             
             def processar_tv(nome, info):
                 try:
+                    # Importa aqui para evitar importação circular
+                    from .tv_controller import TVController
+                    
                     setor = info.get("setor", "")
                     if setor in setores_ignorar or "REUNIÃO" in nome.upper() or "REUNIAO" in nome.upper():
+                        return
+                    
+                    # Verifica se esta TV específica está executando sequência
+                    if TVController.esta_executando_sequencia(nome):
+                        log(f"[KEEP-ALIVE] {nome} está executando sequência - pulando", "INFO")
                         return
                     
                     tv_id = info["id"] if isinstance(info, dict) else info

@@ -17,10 +17,40 @@ import config
 class TVController:
     """Controla operações de TVs (ligar, desligar, sequências)"""
     
+    # Controle de sequências em execução (compartilhado entre instâncias)
+    _sequencias_em_execucao = set()
+    _sequencias_lock = threading.Lock()
+    
     def __init__(self, tv_service, webhook_service: Optional[WebhookService] = None):
         self.tv_service = tv_service
         self.webhook_service = webhook_service or WebhookService()
         self.sequence_mapper = SequenceMapper()
+    
+    @classmethod
+    def esta_executando_sequencia(cls, tv_nome: str) -> bool:
+        """Verifica se uma TV está executando sequência no momento"""
+        with cls._sequencias_lock:
+            return tv_nome in cls._sequencias_em_execucao
+    
+    @classmethod
+    def alguma_sequencia_em_execucao(cls) -> bool:
+        """Verifica se há alguma sequência em execução"""
+        with cls._sequencias_lock:
+            return len(cls._sequencias_em_execucao) > 0
+    
+    @classmethod
+    def _marcar_inicio_sequencia(cls, tv_nome: str):
+        """Marca que uma sequência iniciou para uma TV"""
+        with cls._sequencias_lock:
+            cls._sequencias_em_execucao.add(tv_nome)
+            log(f"[{tv_nome}] Sequência marcada como EM EXECUÇÃO", "INFO")
+    
+    @classmethod
+    def _marcar_fim_sequencia(cls, tv_nome: str):
+        """Marca que uma sequência finalizou para uma TV"""
+        with cls._sequencias_lock:
+            cls._sequencias_em_execucao.discard(tv_nome)
+            log(f"[{tv_nome}] Sequência marcada como FINALIZADA", "INFO")
     
     def toggle_tv(self, tv_nome: str) -> bool:
         """
@@ -31,6 +61,9 @@ class TVController:
             return False
         
         try:
+            # Marca início da sequência
+            self._marcar_inicio_sequencia(tv_nome)
+            
             tv = SmartThingsTV(config.ACCESS_TOKEN)
             tv_info = self.tv_service.obter_tv(tv_nome)
             tv_id = tv_info["id"] if isinstance(tv_info, dict) else tv_info
@@ -51,12 +84,17 @@ class TVController:
                 log(f"[{tv_nome}] Desligando TV...", "INFO")
                 tv._executar_comando_com_retry(tv_id, "switch", "off", max_tentativas=3, delay_retry=[10, 15])
             else:
-                log(f"[{tv_nome}] TV está DESLIGADA - sequência NÃO será executada", "WARNING")
+                log(f"[{tv_nome}] TV está DESLIGADA - executando sequência mesmo assim", "WARNING")
+                # Executa sequência mesmo com TV desligada
+                self.sequence_mapper.executar_sequencia(tv, tv_id, tv_nome)
             
             return True
         except Exception as e:
             log(f"[{tv_nome}] Erro no toggle: {e}", "ERROR")
             return False
+        finally:
+            # Marca fim da sequência (sempre executa, mesmo com erro)
+            self._marcar_fim_sequencia(tv_nome)
     
     def ligar_tv(self, tv_nome: str, enviar_webhook: bool = True) -> bool:
         """
@@ -71,6 +109,9 @@ class TVController:
             return False
         
         try:
+            # Marca início da sequência
+            self._marcar_inicio_sequencia(tv_nome)
+            
             tv = SmartThingsTV(config.ACCESS_TOKEN)
             tv_info = self.tv_service.obter_tv(tv_nome)
             tv_id = tv_info["id"] if isinstance(tv_info, dict) else tv_info
@@ -95,16 +136,19 @@ class TVController:
                 except (KeyError, TypeError):
                     pass
             
-            if is_on:
-                # Executa sequência de inicialização apenas se a TV estiver ligada
-                self.sequence_mapper.executar_sequencia(tv, tv_id, tv_nome)
-            else:
-                log(f"[{tv_nome}] TV está DESLIGADA - sequência NÃO será executada", "WARNING")
+            if not is_on:
+                log(f"[{tv_nome}] TV está DESLIGADA - executando sequência mesmo assim", "WARNING")
+            
+            # Executa sequência de inicialização independente do estado da TV
+            self.sequence_mapper.executar_sequencia(tv, tv_id, tv_nome)
             
             return True
         except Exception as e:
             log(f"[{tv_nome}] Erro ao ligar: {e}", "ERROR")
             return False
+        finally:
+            # Marca fim da sequência (sempre executa, mesmo com erro)
+            self._marcar_fim_sequencia(tv_nome)
     
     def reconectar_tv(self, tv_nome: str) -> bool:
         """Executa sequência de reconexão: Enter -> Wait 10s -> Enter"""
@@ -212,6 +256,9 @@ class TVController:
             return False
         
         try:
+            # Marca início da sequência
+            self._marcar_inicio_sequencia(tv_nome)
+            
             tv = SmartThingsTV(config.ACCESS_TOKEN)
             tv_info = self.tv_service.obter_tv(tv_nome)
             tv_id = tv_info["id"] if isinstance(tv_info, dict) else tv_info
@@ -232,9 +279,14 @@ class TVController:
                 log(f"[{tv_nome}] Desligando TV...", "INFO")
                 tv._executar_comando_com_retry(tv_id, "switch", "off", max_tentativas=3, delay_retry=[10, 15])
             else:
-                log(f"[{tv_nome}] TV está DESLIGADA - NÃO será executada sequência", "WARNING")
+                log(f"[{tv_nome}] TV está DESLIGADA - executando sequência mesmo assim", "WARNING")
+                # Executa sequência mesmo com TV desligada
+                self.sequence_mapper.executar_sequencia(tv, tv_id, tv_nome)
             
             return True
         except Exception as e:
             log(f"[{tv_nome}] Erro no toggle: {e}", "ERROR")
             return False
+        finally:
+            # Marca fim da sequência (sempre executa, mesmo com erro)
+            self._marcar_fim_sequencia(tv_nome)

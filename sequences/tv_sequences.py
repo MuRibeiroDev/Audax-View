@@ -371,3 +371,25 @@ def sequencia_cobranca(tv, tv_id):
     except Exception as e:
         log(f"[{nome}] ERRO: {e}", "ERROR")
         return False
+
+
+def sequencia_cadastro(tv, tv_id):
+    """Sequência para TvCadastro"""
+    nome = "TvCadastro"
+    try:
+        log(f"[{nome}] Iniciando sequência...")
+        ligar_tv(tv, tv_id, nome)
+        pressionar_home(tv, tv_id, nome, delay=5)
+        for _ in range(10):
+            pressionar_direita(tv, tv_id, nome, delay=5)
+        pressionar_enter(tv, tv_id, nome, delay=10)
+        pressionar_baixo(tv, tv_id, nome, delay=5)
+        pressionar_baixo(tv, tv_id, nome, delay=5)
+        pressionar_cima(tv, tv_id, nome, delay=5)
+        pressionar_enter(tv, tv_id, nome, delay=15)
+        pressionar_enter(tv, tv_id, nome, delay=5)
+        log(f"[{nome}] Sequência finalizada!", "SUCCESS")
+        return True
+    except Exception as e:
+        log(f"[{nome}] ERRO: {e}", "ERROR")
+        return False

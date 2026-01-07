@@ -20,6 +20,7 @@ from sequences import (
     sequencia_antifraude,
     sequencia_controladoria,
     sequencia_cobranca,
+    sequencia_cadastro,
 )
 
 
@@ -52,14 +53,16 @@ class SequenceMapper:
             sequencia_financeiro(tv, tv_id)
         elif tv_nome == "TV-JURIDICO":
             sequencia_juridico(tv, tv_id)
-        elif tv_nome == "GESTÃO-INDUSTRIA":
+        elif tv_nome in ["GESTÃO-INDUSTRIA", "Gestão Industria"]:
             sequencia_gestao_industria(tv, tv_id)
-        elif tv_nome == "ANTIFRAUDE":
+        elif tv_nome in ["ANTIFRAUDE", "Antifraude"]:
             sequencia_antifraude(tv, tv_id)
-        elif tv_nome == "CONTROLADORIA":
+        elif tv_nome in ["CONTROLADORIA", "Controladoria"]:
             sequencia_controladoria(tv, tv_id)
-        elif tv_nome == "COBRANÇA":
+        elif tv_nome in ["COBRANÇA", "Cobrança"]:
             sequencia_cobranca(tv, tv_id)
+        elif tv_nome in ["TVCADASTRO", "TvCadastro"]:
+            sequencia_cadastro(tv, tv_id)
         elif tv_nome == "TV-ATLAS":
             sequencia_atlas(tv, tv_id)
         
