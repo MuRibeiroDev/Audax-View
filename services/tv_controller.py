@@ -187,10 +187,17 @@ class TVController:
         tvs_ignoradas = []
         
         for nome_tv, info in self.tv_service.obter_tvs().items():
-            setor = info.get('setor', '').lower()
-            if setor in ['reuniÃ£o', 'reuniao']:
+            # Verifica se é TV de reunião por nome ou setor
+            eh_reuniao = (
+                "REUNIÃO" in nome_tv.upper() or 
+                "REUNIAO" in nome_tv.upper() or
+                nome_tv in ["TV-ATLAS", "TV-DIA D", "TV-MOSSAD", "TV-GEO-FOREST"] or
+                info.get('setor', '').lower() in ['reunião', 'reuniao']
+            )
+            
+            if eh_reuniao:
                 tvs_ignoradas.append(nome_tv)
-                log(f"â­ï¸  [{nome_tv}] Ignorada (setor: {info.get('setor')})", "WARNING")
+                log(f"⏭️  [{nome_tv}] Ignorada (TV de reunião)", "WARNING")
             else:
                 tvs_para_desligar.append(nome_tv)
         
