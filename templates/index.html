@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controle de TVs Samsung</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=3.2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=3.3">
 </head>
 <body>
     <div class="app-container">
@@ -50,15 +50,28 @@
             </div>
 
             <div class="sidebar-footer">
-                <button class="btn-all btn-primary" onclick="toggleAllTVs()">
-                    Ligar Todas
-                </button>
-                <button class="btn-all btn-secondary" onclick="religarAllTVs()">
-                    Religar Todas
-                </button>
-                <button class="btn-all btn-danger" onclick="desligarTVsExcetoReunioes()">
-                    Desligar (exceto reuniões)
-                </button>
+                <div class="global-control">
+                    <span class="global-control-label">Ligar Todas</span>
+                    <div class="global-control-actions">
+                        <div class="status-icon power-icon global-power-on" id="global-power-on" title="Ligar Todas" onclick="openGlobalLigarMenu(event)">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                                <line x1="12" y1="2" x2="12" y2="12"></line>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="global-control">
+                    <span class="global-control-label">Desligar (exceto reuniões)</span>
+                    <div class="global-control-actions">
+                        <div class="status-icon power-icon global-power-off" id="global-power-off" title="Desligar Todas" onclick="desligarTVsExcetoReunioes()">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                                <line x1="12" y1="2" x2="12" y2="12"></line>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
             </div>
         </aside>
         
@@ -67,7 +80,7 @@
         </div>
     </div>
 
-    <!-- Menu de Contexto Global -->
+    <!-- Menu de Contexto Individual das TVs -->
     <div id="globalContextMenu" class="tv-context-menu" style="display: none;">
         <button class="menu-option" id="btnReconnectGlobal">
             <svg class="refresh-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -83,6 +96,24 @@
                 <line x1="12" y1="2" x2="12" y2="12"></line>
             </svg>
             Ligar com BI
+        </button>
+    </div>
+
+    <!-- Menu de Ligar Todas -->
+    <div id="globalLigarMenu" class="tv-context-menu" style="display: none;">
+        <button class="menu-option" onclick="ligarTodasComBi()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                <line x1="12" y1="2" x2="12" y2="12"></line>
+            </svg>
+            Abrir com BI
+        </button>
+        <button class="menu-option" onclick="ligarTodasSemBi()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                <line x1="12" y1="2" x2="12" y2="12"></line>
+            </svg>
+            Abrir sem BI
         </button>
     </div>
 
@@ -126,6 +157,6 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='script.js') }}?v=3.0"></script>
+    <script src="{{ url_for('static', filename='script.js') }}?v=3.1"></script>
 </body>
 </html>

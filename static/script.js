@@ -80,8 +80,48 @@ async function togglePower(tvName) {
     }
 }
 
-// Toggle todas as TVs (COM webhook - primeira vez)
-async function toggleAllTVs() {
+// Abrir menu de ligar todas
+function openGlobalLigarMenu(event) {
+    event.stopPropagation();
+    const menu = document.getElementById('globalLigarMenu');
+    if (!menu) return;
+
+    // Se o menu já está aberto, fecha
+    if (menu.classList.contains('show')) {
+        closeGlobalLigarMenu();
+        return;
+    }
+
+    // Posicionamento
+    const buttonRect = event.currentTarget.getBoundingClientRect();
+    let left = Math.max(buttonRect.right + 10, 305);
+    let top = buttonRect.top;
+    
+    menu.style.display = 'block';
+    
+    requestAnimationFrame(() => {
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+        menu.classList.add('show');
+    });
+}
+
+function closeGlobalLigarMenu() {
+    const menu = document.getElementById('globalLigarMenu');
+    if (menu) {
+        menu.classList.remove('show');
+        setTimeout(() => {
+            if (!menu.classList.contains('show')) {
+                menu.style.display = 'none';
+            }
+        }, 200);
+    }
+}
+
+// Ligar todas COM BI (envia webhook)
+async function ligarTodasComBi() {
+    closeGlobalLigarMenu();
+    
     document.querySelectorAll('.power-icon').forEach(icon => {
         icon.classList.remove('on', 'off');
         icon.classList.add('loading');
@@ -92,7 +132,6 @@ async function toggleAllTVs() {
         const data = await response.json();
         
         if (data.success) {
-            // Aguarda mais tempo pois são múltiplas requisições
             setTimeout(() => checkAllStatus(), 12000);
         }
     } catch (error) {
@@ -101,8 +140,10 @@ async function toggleAllTVs() {
     }
 }
 
-// Religar todas as TVs (SEM webhook - BIs já ligados)
-async function religarAllTVs() {
+// Ligar todas SEM BI (não envia webhook)
+async function ligarTodasSemBi() {
+    closeGlobalLigarMenu();
+    
     document.querySelectorAll('.power-icon').forEach(icon => {
         icon.classList.remove('on', 'off');
         icon.classList.add('loading');
@@ -113,7 +154,6 @@ async function religarAllTVs() {
         const data = await response.json();
         
         if (data.success) {
-            // Aguarda mais tempo pois são múltiplas requisições
             setTimeout(() => checkAllStatus(), 12000);
         }
     } catch (error) {
@@ -385,10 +425,17 @@ function closeContextMenu() {
 
 // Close menus when clicking outside
 document.addEventListener('click', (e) => {
-    const menu = document.getElementById('globalContextMenu');
-    // Se o clique não foi no menu nem no ícone que abriu (tratado no stopPropagation do HTML, mas bom garantir)
-    if (menu && !e.target.closest('.tv-context-menu') && !e.target.closest('.menu-icon')) {
+    const contextMenu = document.getElementById('globalContextMenu');
+    const ligarMenu = document.getElementById('globalLigarMenu');
+    
+    // Se o clique não foi no menu nem no ícone que abriu
+    if (contextMenu && !e.target.closest('.tv-context-menu') && !e.target.closest('.menu-icon')) {
         closeContextMenu();
+    }
+    
+    // Fecha menu de ligar todas
+    if (ligarMenu && !e.target.closest('#globalLigarMenu') && !e.target.closest('#global-power-on')) {
+        closeGlobalLigarMenu();
     }
 });
 

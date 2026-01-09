@@ -10,7 +10,7 @@ from flask import cli
 
 # Configurações
 import config
-from config import HOST, PORT, TOKEN_AUTO_RENOVACAO, TOKEN_HORARIO_RENOVACAO, KEEP_ALIVE_ATIVO, KEEP_ALIVE_INTERVALO
+from config import HOST, PORT, TOKEN_AUTO_RENOVACAO, TOKEN_HORARIO_RENOVACAO, KEEP_ALIVE_ATIVO, KEEP_ALIVE_INTERVALO, AUTO_LIGAR_ATIVO, AUTO_LIGAR_HORARIO
 
 # Services
 from services.tv_service import TVService
@@ -45,7 +45,7 @@ def create_app():
     webhook_service = WebhookService()
     whatsapp_service = WhatsAppService()
     tv_controller = TVController(tv_service, webhook_service)
-    scheduler_service = SchedulerService(tv_service)
+    scheduler_service = SchedulerService(tv_service, tv_controller)
     renovador_token = RenovadorTokenSmartThings()
     
     # Registra rotas
@@ -104,6 +104,16 @@ def inicializar_sistema(app):
     # Sistema de Keep Alive
     if KEEP_ALIVE_ATIVO:
         app.scheduler_service.iniciar_keep_alive(KEEP_ALIVE_INTERVALO)
+    
+    # Sistema de ligamento automático (dias úteis)
+    if AUTO_LIGAR_ATIVO:
+        try:
+            app.scheduler_service.iniciar_ligamento_automatico(AUTO_LIGAR_HORARIO)
+            log(f"[AUTO-LIGAR] Agendamento ativado para {AUTO_LIGAR_HORARIO} (dias úteis)", "SUCCESS")
+        except Exception as e:
+            log(f"[AUTO-LIGAR] Erro ao iniciar agendamento: {e}", "ERROR")
+    else:
+        log("[AUTO-LIGAR] Ligamento automático desativado (config.py)", "INFO")
     
     # Inicia a thread do scheduler
     app.scheduler_service.iniciar_scheduler()

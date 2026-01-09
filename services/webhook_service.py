@@ -70,3 +70,22 @@ class WebhookService:
     def tv_tem_webhook(self, tv_nome: str) -> bool:
         """Verifica se uma TV está mapeada para webhook"""
         return tv_nome in TV_WEBHOOK_MAP
+    
+    def enviar_webhook(self, tvs: Optional[list] = None) -> bool:
+        """
+        Envia webhook para ligar máquinas virtuais de múltiplas TVs
+        Args:
+            tvs: Lista de nomes de TVs para ligar. Se None, liga todas as TVs mapeadas
+        Returns:
+            True se pelo menos um webhook foi enviado com sucesso
+        """
+        if tvs is None:
+            # Se não especificado, usa todas as TVs do mapeamento
+            tvs = list(set(TV_WEBHOOK_MAP.keys()))
+        
+        sucesso = False
+        for tv_nome in tvs:
+            if self.enviar_comando_ligar(tv_nome):
+                sucesso = True
+        
+        return sucesso

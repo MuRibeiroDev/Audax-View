@@ -1,6 +1,6 @@
-"""
+﻿"""
 Controlador de TVs
-Gerencia operações de controle e execução de sequências
+Gerencia operaÃ§Ãµes de controle e execuÃ§Ã£o de sequÃªncias
 """
 
 import threading
@@ -15,9 +15,9 @@ import config
 
 
 class TVController:
-    """Controla operações de TVs (ligar, desligar, sequências)"""
+    """Controla operaÃ§Ãµes de TVs (ligar, desligar, sequÃªncias)"""
     
-    # Controle de sequências em execução (compartilhado entre instâncias)
+    # Controle de sequÃªncias em execuÃ§Ã£o (compartilhado entre instÃ¢ncias)
     _sequencias_em_execucao = set()
     _sequencias_lock = threading.Lock()
     
@@ -28,40 +28,40 @@ class TVController:
     
     @classmethod
     def esta_executando_sequencia(cls, tv_nome: str) -> bool:
-        """Verifica se uma TV está executando sequência no momento"""
+        """Verifica se uma TV estÃ¡ executando sequÃªncia no momento"""
         with cls._sequencias_lock:
             return tv_nome in cls._sequencias_em_execucao
     
     @classmethod
     def alguma_sequencia_em_execucao(cls) -> bool:
-        """Verifica se há alguma sequência em execução"""
+        """Verifica se hÃ¡ alguma sequÃªncia em execuÃ§Ã£o"""
         with cls._sequencias_lock:
             return len(cls._sequencias_em_execucao) > 0
     
     @classmethod
     def _marcar_inicio_sequencia(cls, tv_nome: str):
-        """Marca que uma sequência iniciou para uma TV"""
+        """Marca que uma sequÃªncia iniciou para uma TV"""
         with cls._sequencias_lock:
             cls._sequencias_em_execucao.add(tv_nome)
-            log(f"[{tv_nome}] Sequência marcada como EM EXECUÇÃO", "INFO")
+            log(f"[{tv_nome}] SequÃªncia marcada como EM EXECUÃ‡ÃƒO", "INFO")
     
     @classmethod
     def _marcar_fim_sequencia(cls, tv_nome: str):
-        """Marca que uma sequência finalizou para uma TV"""
+        """Marca que uma sequÃªncia finalizou para uma TV"""
         with cls._sequencias_lock:
             cls._sequencias_em_execucao.discard(tv_nome)
-            log(f"[{tv_nome}] Sequência marcada como FINALIZADA", "INFO")
+            log(f"[{tv_nome}] SequÃªncia marcada como FINALIZADA", "INFO")
     
     def toggle_tv(self, tv_nome: str) -> bool:
         """
-        Toggle de uma TV: se ligada desliga, se desligada liga + executa sequência
+        Toggle de uma TV: se ligada desliga, se desligada liga + executa sequÃªncia
         """
         if not self.tv_service.tv_existe(tv_nome):
-            log(f"[{tv_nome}] TV não encontrada", "ERROR")
+            log(f"[{tv_nome}] TV nÃ£o encontrada", "ERROR")
             return False
         
         try:
-            # Marca início da sequência
+            # Marca inÃ­cio da sequÃªncia
             self._marcar_inicio_sequencia(tv_nome)
             
             tv = SmartThingsTV(config.ACCESS_TOKEN)
@@ -84,8 +84,8 @@ class TVController:
                 log(f"[{tv_nome}] Desligando TV...", "INFO")
                 tv._executar_comando_com_retry(tv_id, "switch", "off", max_tentativas=3, delay_retry=[10, 15])
             else:
-                log(f"[{tv_nome}] TV está DESLIGADA - executando sequência mesmo assim", "WARNING")
-                # Executa sequência mesmo com TV desligada
+                log(f"[{tv_nome}] TV estÃ¡ DESLIGADA - executando sequÃªncia mesmo assim", "WARNING")
+                # Executa sequÃªncia mesmo com TV desligada
                 self.sequence_mapper.executar_sequencia(tv, tv_id, tv_nome)
             
             return True
@@ -93,23 +93,23 @@ class TVController:
             log(f"[{tv_nome}] Erro no toggle: {e}", "ERROR")
             return False
         finally:
-            # Marca fim da sequência (sempre executa, mesmo com erro)
+            # Marca fim da sequÃªncia (sempre executa, mesmo com erro)
             self._marcar_fim_sequencia(tv_nome)
     
     def ligar_tv(self, tv_nome: str, enviar_webhook: bool = True) -> bool:
         """
-        Liga uma TV específica (força ligar, não faz toggle)
+        Liga uma TV especÃ­fica (forÃ§a ligar, nÃ£o faz toggle)
         
         Args:
             tv_nome: Nome da TV
             enviar_webhook: Se True, envia webhook para ligar BI. Se False, apenas liga a TV
         """
         if not self.tv_service.tv_existe(tv_nome):
-            log(f"[{tv_nome}] TV não encontrada", "ERROR")
+            log(f"[{tv_nome}] TV nÃ£o encontrada", "ERROR")
             return False
         
         try:
-            # Marca início da sequência
+            # Marca inÃ­cio da sequÃªncia
             self._marcar_inicio_sequencia(tv_nome)
             
             tv = SmartThingsTV(config.ACCESS_TOKEN)
@@ -118,14 +118,14 @@ class TVController:
             
             log(f"[{tv_nome}] Iniciando processo de ligar TV...", "INFO")
             
-            # Envia webhook para ligar máquina virtual (apenas se solicitado)
+            # Envia webhook para ligar mÃ¡quina virtual (apenas se solicitado)
             if enviar_webhook:
                 self.webhook_service.enviar_comando_ligar(tv_nome)
             else:
-                log(f"[{tv_nome}] Webhook ignorado (BI já está ligado)", "INFO")
+                log(f"[{tv_nome}] Webhook ignorado (BI jÃ¡ estÃ¡ ligado)", "INFO")
             
-            # Verifica se a TV está ligada antes de executar a sequência
-            log(f"[{tv_nome}] Verificando status antes de executar sequência...", "INFO")
+            # Verifica se a TV estÃ¡ ligada antes de executar a sequÃªncia
+            log(f"[{tv_nome}] Verificando status antes de executar sequÃªncia...", "INFO")
             status_data = tv.obter_status(tv_id)
             is_on = False
             
@@ -137,9 +137,9 @@ class TVController:
                     pass
             
             if not is_on:
-                log(f"[{tv_nome}] TV está DESLIGADA - executando sequência mesmo assim", "WARNING")
+                log(f"[{tv_nome}] TV estÃ¡ DESLIGADA - executando sequÃªncia mesmo assim", "WARNING")
             
-            # Executa sequência de inicialização independente do estado da TV
+            # Executa sequÃªncia de inicializaÃ§Ã£o independente do estado da TV
             self.sequence_mapper.executar_sequencia(tv, tv_id, tv_nome)
             
             return True
@@ -147,13 +147,13 @@ class TVController:
             log(f"[{tv_nome}] Erro ao ligar: {e}", "ERROR")
             return False
         finally:
-            # Marca fim da sequência (sempre executa, mesmo com erro)
+            # Marca fim da sequÃªncia (sempre executa, mesmo com erro)
             self._marcar_fim_sequencia(tv_nome)
     
     def reconectar_tv(self, tv_nome: str) -> bool:
-        """Executa sequência de reconexão: Enter -> Wait 10s -> Enter"""
+        """Executa sequÃªncia de reconexÃ£o: Enter -> Wait 10s -> Enter"""
         if not self.tv_service.tv_existe(tv_nome):
-            log(f"[{tv_nome}] TV não encontrada", "ERROR")
+            log(f"[{tv_nome}] TV nÃ£o encontrada", "ERROR")
             return False
         
         try:
@@ -161,42 +161,42 @@ class TVController:
             tv_info = self.tv_service.obter_tv(tv_nome)
             tv_id = tv_info["id"] if isinstance(tv_info, dict) else tv_info
             
-            log(f"[{tv_nome}] Iniciando reconexão (Enter + 10s + Enter)...", "INFO")
+            log(f"[{tv_nome}] Iniciando reconexÃ£o (Enter + 10s + Enter)...", "INFO")
             pressionar_enter(tv, tv_id, tv_nome, delay=10)
             pressionar_enter(tv, tv_id, tv_nome, delay=0)
-            log(f"[{tv_nome}] Reconexão finalizada!", "SUCCESS")
+            log(f"[{tv_nome}] ReconexÃ£o finalizada!", "SUCCESS")
             
             return True
         except Exception as e:
-            log(f"[{tv_nome}] Erro na reconexão: {e}", "ERROR")
+            log(f"[{tv_nome}] Erro na reconexÃ£o: {e}", "ERROR")
             return False
     
     def desligar_tvs_exceto_reuniao(self) -> dict:
         """
-        Desliga todas as TVs exceto as de reunião, 2 por vez com intervalo de 10 segundos.
+        Desliga todas as TVs exceto as de reuniÃ£o, 2 por vez com intervalo de 10 segundos.
         
         Returns:
-            dict: Relatório com TVs desligadas, ignoradas e erros
+            dict: RelatÃ³rio com TVs desligadas, ignoradas e erros
         """
         log("="*80, "INFO")
-        log("🔌 INICIANDO DESLIGAMENTO EM LOTE (exceto reuniões)", "INFO")
+        log("ðŸ”Œ INICIANDO DESLIGAMENTO EM LOTE (exceto reuniÃµes)", "INFO")
         log("="*80, "INFO")
         
-        # Filtra TVs excluindo as de reunião
+        # Filtra TVs excluindo as de reuniÃ£o
         tvs_para_desligar = []
         tvs_ignoradas = []
         
         for nome_tv, info in self.tv_service.obter_tvs().items():
             setor = info.get('setor', '').lower()
-            if setor in ['reunião', 'reuniao']:
+            if setor in ['reuniÃ£o', 'reuniao']:
                 tvs_ignoradas.append(nome_tv)
-                log(f"⏭️  [{nome_tv}] Ignorada (setor: {info.get('setor')})", "WARNING")
+                log(f"â­ï¸  [{nome_tv}] Ignorada (setor: {info.get('setor')})", "WARNING")
             else:
                 tvs_para_desligar.append(nome_tv)
         
-        log(f"\n📊 Total de TVs: {len(tvs_para_desligar) + len(tvs_ignoradas)}", "INFO")
-        log(f"🔴 TVs para desligar: {len(tvs_para_desligar)}", "INFO")
-        log(f"⏭️  TVs ignoradas (reunião): {len(tvs_ignoradas)}", "INFO")
+        log(f"\nðŸ“Š Total de TVs: {len(tvs_para_desligar) + len(tvs_ignoradas)}", "INFO")
+        log(f"ðŸ”´ TVs para desligar: {len(tvs_para_desligar)}", "INFO")
+        log(f"â­ï¸  TVs ignoradas (reuniÃ£o): {len(tvs_ignoradas)}", "INFO")
         log("", "INFO")
         
         # Desliga 2 TVs por vez
@@ -209,7 +209,7 @@ class TVController:
             batch = tvs_para_desligar[i:i+2]
             threads = []
             
-            log(f"\n🔄 Lote {i//2 + 1}/{(len(tvs_para_desligar) + 1)//2}", "INFO")
+            log(f"\nðŸ”„ Lote {i//2 + 1}/{(len(tvs_para_desligar) + 1)//2}", "INFO")
             log("-" * 60, "INFO")
             
             for nome_tv in batch:
@@ -221,10 +221,10 @@ class TVController:
                         tv = SmartThingsTV(config.ACCESS_TOKEN)
                         desligar_tv(tv, tv_id, nome, delay=1)
                         tvs_desligadas.append(nome)
-                        log(f"✅ [{nome}] Desligada com sucesso", "SUCCESS")
+                        log(f"âœ… [{nome}] Desligada com sucesso", "SUCCESS")
                     except Exception as e:
                         tvs_com_erro.append(nome)
-                        log(f"❌ [{nome}] Erro ao desligar: {e}", "ERROR")
+                        log(f"âŒ [{nome}] Erro ao desligar: {e}", "ERROR")
                 
                 thread = threading.Thread(target=desligar_thread, args=(nome_tv, tv_id))
                 thread.daemon = True
@@ -235,18 +235,18 @@ class TVController:
             for thread in threads:
                 thread.join()
             
-            # Intervalo de 10 segundos entre lotes (exceto no último)
+            # Intervalo de 10 segundos entre lotes (exceto no Ãºltimo)
             if i + 2 < len(tvs_para_desligar):
-                log("\n⏱️  Aguardando 10 segundos antes do próximo lote...", "INFO")
+                log("\nâ±ï¸  Aguardando 10 segundos antes do prÃ³ximo lote...", "INFO")
                 time.sleep(10)
         
-        # Relatório final
+        # RelatÃ³rio final
         log("\n" + "="*80, "INFO")
-        log("📊 RELATÓRIO FINAL", "INFO")
+        log("ðŸ“Š RELATÃ“RIO FINAL", "INFO")
         log("="*80, "INFO")
-        log(f"✅ TVs desligadas com sucesso: {len(tvs_desligadas)}", "SUCCESS")
-        log(f"❌ TVs com erro: {len(tvs_com_erro)}", "ERROR")
-        log(f"⏭️  TVs ignoradas (reunião): {len(tvs_ignoradas)}", "WARNING")
+        log(f"âœ… TVs desligadas com sucesso: {len(tvs_desligadas)}", "SUCCESS")
+        log(f"âŒ TVs com erro: {len(tvs_com_erro)}", "ERROR")
+        log(f"â­ï¸  TVs ignoradas (reuniÃ£o): {len(tvs_ignoradas)}", "WARNING")
         log("="*80, "INFO")
         
         return {
@@ -261,10 +261,128 @@ class TVController:
     
     def toggle_todas(self, enviar_webhook: bool = True) -> bool:
         """
-        Executa toggle em todas as TVs em blocos de 2 com execução intercalada e intervalo de 10s
+        Executa toggle em todas as TVs em blocos de 2 com execuÃ§Ã£o intercalada e intervalo de 10s
         
         Args:
             enviar_webhook: Se True, envia webhook para ligar BIs. Se False, apenas liga TVs
+        """
+        def executar_todas():
+            # Ordem especÃ­fica das TVs (TVs de reuniÃ£o por Ãºltimo)
+            ordem_tvs = [
+                "OperaÃ§Ã£o 1 - TV1", "OperaÃ§Ã£o 2 - TV2",
+                "TV 1 Painel - TV3", "TV 2 Painel - TV4",
+                "TV 3 Painel - TV5", "TV 4 Painel - TV6",
+                "GESTÃƒO-INDUSTRIA", "ANTIFRAUDE",
+                "CONTROLADORIA", "FINANCEIRO",
+                "COBRANÃ‡A", "TV-JURIDICO",
+                "TVCADASTRO", "TI01",
+                "TI02", "TI03"
+            ]
+            
+            # Adiciona TVs de reuniÃ£o no final
+            tvs_disponiveis = self.tv_service.obter_tvs()
+            tvs_reuniao = [nome for nome in tvs_disponiveis.keys() 
+                          if "REUNIÃƒO" in nome.upper() or "REUNIAO" in nome.upper() 
+                          or nome in ["TV-ATLAS", "TV-DIA D", "TV-MOSSAD", "TV-GEO-FOREST"]]
+            
+            # Filtra apenas TVs que existem no sistema
+            tvs_ordenadas = [tv for tv in ordem_tvs if tv in tvs_disponiveis]
+            tvs_ordenadas.extend(tvs_reuniao)
+            
+            total_tvs = len(tvs_ordenadas)
+            
+            if enviar_webhook:
+                log(f"Iniciando toggle de {total_tvs} TVs em blocos de 2 INTERCALADOS (COM webhook para BIs)...", "INFO")
+            else:
+                log(f"Iniciando toggle de {total_tvs} TVs em blocos de 2 INTERCALADOS (SEM webhook - BIs jÃ¡ ligados)...", "INFO")
+            
+            # Processa em blocos de 2 com execuÃ§Ã£o intercalada
+            for i in range(0, total_tvs, 2):
+                bloco = tvs_ordenadas[i:i+2]
+                bloco_num = (i // 2) + 1
+                
+                log(f"[BLOCO {bloco_num}] Processando TVs INTERCALADAS: {', '.join(bloco)}", "INFO")
+                
+                if len(bloco) == 2:
+                    # ExecuÃ§Ã£o intercalada: TV1 comando -> 10s -> TV2 comando -> 10s -> TV1 prÃ³ximo -> ...
+                    tv1, tv2 = bloco[0], bloco[1]
+                    
+                    # Inicia threads para ambas as TVs
+                    thread1 = threading.Thread(target=self._toggle_tv_interno, args=(tv1, enviar_webhook))
+                    thread2 = threading.Thread(target=self._toggle_tv_interno, args=(tv2, enviar_webhook))
+                    
+                    thread1.start()
+                    log(f"[BLOCO {bloco_num}] {tv1} iniciada, aguardando 10s...", "INFO")
+                    time.sleep(10)
+                    
+                    thread2.start()
+                    log(f"[BLOCO {bloco_num}] {tv2} iniciada, aguardando 10s...", "INFO")
+                    time.sleep(10)
+                    
+                    # Aguarda ambas finalizarem
+                    thread1.join()
+                    thread2.join()
+                else:
+                    # Apenas 1 TV no bloco (Ãºltima TV Ã­mpar)
+                    thread = threading.Thread(target=self._toggle_tv_interno, args=(bloco[0], enviar_webhook))
+                    thread.start()
+                    thread.join()
+                
+                log(f"[BLOCO {bloco_num}] ConcluÃ­do!", "SUCCESS")
+            
+            log("Todas as sequÃªncias finalizadas!", "SUCCESS")
+        
+        thread = threading.Thread(target=executar_todas)
+        thread.daemon = True
+        thread.start()
+        return True
+    
+    def _toggle_tv_interno(self, tv_nome: str, enviar_webhook: bool) -> bool:
+        """MÃ©todo interno para toggle com controle de webhook"""
+        if not self.tv_service.tv_existe(tv_nome):
+            log(f"[{tv_nome}] TV nÃ£o encontrada", "ERROR")
+            return False
+        
+        try:
+            # Marca inÃ­cio da sequÃªncia
+            self._marcar_inicio_sequencia(tv_nome)
+            
+            tv = SmartThingsTV(config.ACCESS_TOKEN)
+            tv_info = self.tv_service.obter_tv(tv_nome)
+            tv_id = tv_info["id"] if isinstance(tv_info, dict) else tv_info
+            
+            # Verifica status atual
+            status_data = tv.obter_status(tv_id)
+            is_on = False
+            
+            if status_data:
+                try:
+                    switch_value = status_data['components']['main']['switch']['switch']['value']
+                    is_on = (switch_value == 'on')
+                except (KeyError, TypeError):
+                    pass
+            
+            # Toggle
+            if is_on:
+                log(f"[{tv_nome}] Desligando TV...", "INFO")
+                tv._executar_comando_com_retry(tv_id, "switch", "off", max_tentativas=3, delay_retry=[10, 15])
+            else:
+                log(f"[{tv_nome}] TV estÃ¡ DESLIGADA - executando sequÃªncia mesmo assim", "WARNING")
+                # Executa sequÃªncia mesmo com TV desligada
+                self.sequence_mapper.executar_sequencia(tv, tv_id, tv_nome)
+            
+            return True
+        except Exception as e:
+            log(f"[{tv_nome}] Erro no toggle: {e}", "ERROR")
+            return False
+        finally:
+            # Marca fim da sequÃªncia (sempre executa, mesmo com erro)
+            self._marcar_fim_sequencia(tv_nome)
+
+    def ligar_todas_automatico(self):
+        """
+        Liga todas as TVs automaticamente (agendamento diário)
+        Executa de 2 em 2 TVs com intervalo de 20 segundos entre grupos
         """
         def executar_todas():
             # Ordem específica das TVs (TVs de reunião por último)
@@ -291,90 +409,45 @@ class TVController:
             
             total_tvs = len(tvs_ordenadas)
             
-            if enviar_webhook:
-                log(f"Iniciando toggle de {total_tvs} TVs em blocos de 2 INTERCALADOS (COM webhook para BIs)...", "INFO")
-            else:
-                log(f"Iniciando toggle de {total_tvs} TVs em blocos de 2 INTERCALADOS (SEM webhook - BIs já ligados)...", "INFO")
+            log("="*80, "INFO")
+            log(f" LIGAMENTO AUTOMÁTICO - {total_tvs} TVs (grupos de 2)", "INFO")
+            log("="*80, "INFO")
             
-            # Processa em blocos de 2 com execução intercalada
+            # Envia webhook ANTES de começar (DESATIVADO por enquanto)
+            # log(" Enviando webhook para ligar BIs...", "INFO")
+            # self.webhook_service.enviar_webhook(tvs_ordenadas)
+            
+            # Processa em blocos de 2 com 20 segundos de intervalo
             for i in range(0, total_tvs, 2):
                 bloco = tvs_ordenadas[i:i+2]
                 bloco_num = (i // 2) + 1
+                total_blocos = (total_tvs + 1) // 2
                 
-                log(f"[BLOCO {bloco_num}] Processando TVs INTERCALADAS: {', '.join(bloco)}", "INFO")
+                log(f"\n[BLOCO {bloco_num}/{total_blocos}] Ligando: {', '.join(bloco)}", "INFO")
                 
-                if len(bloco) == 2:
-                    # Execução intercalada: TV1 comando -> 10s -> TV2 comando -> 10s -> TV1 próximo -> ...
-                    tv1, tv2 = bloco[0], bloco[1]
-                    
-                    # Inicia threads para ambas as TVs
-                    thread1 = threading.Thread(target=self._toggle_tv_interno, args=(tv1, enviar_webhook))
-                    thread2 = threading.Thread(target=self._toggle_tv_interno, args=(tv2, enviar_webhook))
-                    
-                    thread1.start()
-                    log(f"[BLOCO {bloco_num}] {tv1} iniciada, aguardando 10s...", "INFO")
-                    time.sleep(10)
-                    
-                    thread2.start()
-                    log(f"[BLOCO {bloco_num}] {tv2} iniciada, aguardando 10s...", "INFO")
-                    time.sleep(10)
-                    
-                    # Aguarda ambas finalizarem
-                    thread1.join()
-                    thread2.join()
-                else:
-                    # Apenas 1 TV no bloco (última TV ímpar)
-                    thread = threading.Thread(target=self._toggle_tv_interno, args=(bloco[0], enviar_webhook))
+                threads = []
+                for tv_nome in bloco:
+                    thread = threading.Thread(target=self.ligar_tv, args=(tv_nome, False))  # False = não envia webhook (já enviado)
+                    thread.daemon = True
+                    threads.append(thread)
                     thread.start()
+                
+                # Aguarda todas as threads do bloco finalizarem
+                for thread in threads:
                     thread.join()
                 
-                log(f"[BLOCO {bloco_num}] Concluído!", "SUCCESS")
+                log(f"[BLOCO {bloco_num}/{total_blocos}]  Concluído", "SUCCESS")
+                
+                # Aguarda 20 segundos antes do próximo bloco (exceto no último)
+                if i + 2 < total_tvs:
+                    log(f"  Aguardando 20 segundos antes do próximo bloco...", "INFO")
+                    time.sleep(20)
             
-            log("Todas as sequências finalizadas!", "SUCCESS")
+            log("\n" + "="*80, "INFO")
+            log(" LIGAMENTO AUTOMÁTICO FINALIZADO!", "SUCCESS")
+            log("="*80, "INFO")
         
         thread = threading.Thread(target=executar_todas)
         thread.daemon = True
         thread.start()
         return True
-    
-    def _toggle_tv_interno(self, tv_nome: str, enviar_webhook: bool) -> bool:
-        """Método interno para toggle com controle de webhook"""
-        if not self.tv_service.tv_existe(tv_nome):
-            log(f"[{tv_nome}] TV não encontrada", "ERROR")
-            return False
-        
-        try:
-            # Marca início da sequência
-            self._marcar_inicio_sequencia(tv_nome)
-            
-            tv = SmartThingsTV(config.ACCESS_TOKEN)
-            tv_info = self.tv_service.obter_tv(tv_nome)
-            tv_id = tv_info["id"] if isinstance(tv_info, dict) else tv_info
-            
-            # Verifica status atual
-            status_data = tv.obter_status(tv_id)
-            is_on = False
-            
-            if status_data:
-                try:
-                    switch_value = status_data['components']['main']['switch']['switch']['value']
-                    is_on = (switch_value == 'on')
-                except (KeyError, TypeError):
-                    pass
-            
-            # Toggle
-            if is_on:
-                log(f"[{tv_nome}] Desligando TV...", "INFO")
-                tv._executar_comando_com_retry(tv_id, "switch", "off", max_tentativas=3, delay_retry=[10, 15])
-            else:
-                log(f"[{tv_nome}] TV está DESLIGADA - executando sequência mesmo assim", "WARNING")
-                # Executa sequência mesmo com TV desligada
-                self.sequence_mapper.executar_sequencia(tv, tv_id, tv_nome)
-            
-            return True
-        except Exception as e:
-            log(f"[{tv_nome}] Erro no toggle: {e}", "ERROR")
-            return False
-        finally:
-            # Marca fim da sequência (sempre executa, mesmo com erro)
-            self._marcar_fim_sequencia(tv_nome)

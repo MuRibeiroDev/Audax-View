@@ -18,8 +18,9 @@ import config
 class SchedulerService:
     """Gerencia todas as tarefas agendadas do sistema"""
     
-    def __init__(self, tv_service):
+    def __init__(self, tv_service, tv_controller=None):
         self.tv_service = tv_service
+        self.tv_controller = tv_controller
         self.renovador_token = RenovadorTokenSmartThings()
         self.scheduler_thread: Optional[threading.Thread] = None
     
@@ -113,6 +114,25 @@ class SchedulerService:
         
         schedule.every(intervalo_minutos).minutes.do(executar_keep_alive)
         log(f"[KEEP-ALIVE] Agendado para rodar a cada {intervalo_minutos} minutos", "SUCCESS")
+    
+    def iniciar_ligamento_automatico(self, horario: str = '06:20'):
+        """Agenda ligamento automático de todas as TVs em dias úteis"""
+        def ligar_todas_automatico():
+            import datetime
+            # Verifica se é dia útil (segunda a sexta)
+            dia_semana = datetime.datetime.now().weekday()
+            if dia_semana >= 5:  # 5 = Sábado, 6 = Domingo
+                log("[AUTO-LIGAR] Hoje não é dia útil - pulando execução", "INFO")
+                return
+            
+            log("[AUTO-LIGAR] Iniciando ligamento automático de todas as TVs...", "INFO")
+            if self.tv_controller:
+                self.tv_controller.ligar_todas_automatico()
+            else:
+                log("[AUTO-LIGAR] ERRO: TV Controller não disponível", "ERROR")
+        
+        schedule.every().day.at(horario).do(ligar_todas_automatico)
+        log(f"[AUTO-LIGAR] Ligamento automático agendado para {horario} (dias úteis)", "SUCCESS")
     
     def iniciar_scheduler(self):
         """Inicia a thread de execução do scheduler"""
