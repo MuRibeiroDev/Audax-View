@@ -116,16 +116,8 @@ class TVController:
             tv_info = self.tv_service.obter_tv(tv_nome)
             tv_id = tv_info["id"] if isinstance(tv_info, dict) else tv_info
             
-            log(f"[{tv_nome}] Iniciando processo de ligar TV...", "INFO")
-            
-            # Envia webhook para ligar mÃ¡quina virtual (apenas se solicitado)
-            if enviar_webhook:
-                self.webhook_service.enviar_comando_ligar(tv_nome)
-            else:
-                log(f"[{tv_nome}] Webhook ignorado (BI jÃ¡ estÃ¡ ligado)", "INFO")
-            
-            # Verifica se a TV estÃ¡ ligada antes de executar a sequÃªncia
-            log(f"[{tv_nome}] Verificando status antes de executar sequÃªncia...", "INFO")
+            # Verifica status atual ANTES de fazer qualquer coisa
+            log(f"[{tv_nome}] Verificando status...", "INFO")
             status_data = tv.obter_status(tv_id)
             is_on = False
             
@@ -136,10 +128,19 @@ class TVController:
                 except (KeyError, TypeError):
                     pass
             
-            if not is_on:
-                log(f"[{tv_nome}] TV estÃ¡ DESLIGADA - executando sequÃªncia mesmo assim", "WARNING")
+            if is_on:
+                log(f"[{tv_nome}] TV já está LIGADA - pulando execução", "WARNING")
+                return True
             
-            # Executa sequÃªncia de inicializaÃ§Ã£o independente do estado da TV
+            log(f"[{tv_nome}] TV está DESLIGADA - iniciando sequência de ligar", "INFO")
+            
+            # Envia webhook para ligar mÃ¡quina virtual (apenas se solicitado)
+            if enviar_webhook:
+                self.webhook_service.enviar_comando_ligar(tv_nome)
+            else:
+                log(f"[{tv_nome}] Webhook ignorado (BI jÃ¡ estÃ¡ ligado)", "INFO")
+            
+            # Executa sequÃªncia de inicializaÃ§Ã£o
             self.sequence_mapper.executar_sequencia(tv, tv_id, tv_nome)
             
             return True
@@ -276,14 +277,14 @@ class TVController:
         def executar_todas():
             # Ordem especÃ­fica das TVs (TVs de reuniÃ£o por Ãºltimo)
             ordem_tvs = [
+                "TI01", "TI02", "TI03",
                 "OperaÃ§Ã£o 1 - TV1", "OperaÃ§Ã£o 2 - TV2",
                 "TV 1 Painel - TV3", "TV 2 Painel - TV4",
                 "TV 3 Painel - TV5", "TV 4 Painel - TV6",
                 "GESTÃƒO-INDUSTRIA", "ANTIFRAUDE",
                 "CONTROLADORIA", "FINANCEIRO",
                 "COBRANÃ‡A", "TV-JURIDICO",
-                "TVCADASTRO", "TI01",
-                "TI02", "TI03"
+                "TVCADASTRO"
             ]
             
             # Adiciona TVs de reuniÃ£o no final
@@ -374,8 +375,15 @@ class TVController:
                 log(f"[{tv_nome}] Desligando TV...", "INFO")
                 tv._executar_comando_com_retry(tv_id, "switch", "off", max_tentativas=3, delay_retry=[10, 15])
             else:
-                log(f"[{tv_nome}] TV estÃ¡ DESLIGADA - executando sequÃªncia mesmo assim", "WARNING")
-                # Executa sequÃªncia mesmo com TV desligada
+                log(f"[{tv_nome}] TV estÃ¡ DESLIGADA - iniciando sequÃªncia de ligar", "INFO")
+                
+                # Envia webhook se solicitado
+                if enviar_webhook:
+                    self.webhook_service.enviar_comando_ligar(tv_nome)
+                else:
+                    log(f"[{tv_nome}] Webhook ignorado", "INFO")
+                
+                # Executa sequÃªncia
                 self.sequence_mapper.executar_sequencia(tv, tv_id, tv_nome)
             
             return True
@@ -394,14 +402,14 @@ class TVController:
         def executar_todas():
             # Ordem específica das TVs (TVs de reunião por último)
             ordem_tvs = [
+                "TI01", "TI02", "TI03",
                 "Operação 1 - TV1", "Operação 2 - TV2",
                 "TV 1 Painel - TV3", "TV 2 Painel - TV4",
                 "TV 3 Painel - TV5", "TV 4 Painel - TV6",
                 "GESTÃO-INDUSTRIA", "ANTIFRAUDE",
                 "CONTROLADORIA", "FINANCEIRO",
                 "COBRANÇA", "TV-JURIDICO",
-                "TVCADASTRO", "TI01",
-                "TI02", "TI03"
+                "TVCADASTRO"
             ]
             
             # Adiciona TVs de reunião no final
@@ -433,7 +441,11 @@ class TVController:
                 log(f"\n[BLOCO {bloco_num}/{total_blocos}] Ligando: {', '.join(bloco)}", "INFO")
                 
                 threads = []
-                for tv_nome in bloco:
+                for idx, tv_nome in enumerate(bloco):
+                    if idx > 0:
+                        log(f"  Aguardando 10 segundos para iniciar a próxima TV do bloco...", "INFO")
+                        time.sleep(10)
+                        
                     thread = threading.Thread(target=self.ligar_tv, args=(tv_nome, False))  # False = não envia webhook (já enviado)
                     thread.daemon = True
                     threads.append(thread)
@@ -447,8 +459,8 @@ class TVController:
                 
                 # Aguarda 20 segundos antes do próximo bloco (exceto no último)
                 if i + 2 < total_tvs:
-                    log(f"  Aguardando 20 segundos antes do próximo bloco...", "INFO")
-                    time.sleep(20)
+                    log(f"  Aguardando 60 segundos antes do próximo bloco...", "INFO")
+                    time.sleep(60)
             
             log("\n" + "="*80, "INFO")
             log(" LIGAMENTO AUTOMÁTICO FINALIZADO!", "SUCCESS")

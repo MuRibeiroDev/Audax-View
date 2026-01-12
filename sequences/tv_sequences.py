@@ -134,17 +134,19 @@ def sequencia_tv1_painel_tv3(tv, tv_id):
     nome = "TV 1 Painel - TV3"
     try:
         log(f"[{nome}] Iniciando sequência...")
-        ligar_tv(tv, tv_id, nome)
-        pressionar_home(tv, tv_id, nome)
+        ligar_tv(tv, tv_id, nome, delay=10)
+        pressionar_home(tv, tv_id, nome, delay=10)
         for i in range(4):
-            pressionar_esquerda(tv, tv_id, nome, delay=6)
-        pressionar_cima(tv, tv_id, nome, delay=6)
-        pressionar_direita(tv, tv_id, nome, delay=6)
-        pressionar_direita(tv, tv_id, nome, delay=6)
-        pressionar_baixo(tv, tv_id, nome, delay=6)
-        pressionar_baixo(tv, tv_id, nome, delay=6)
-        pressionar_cima(tv, tv_id, nome, delay=6)
-        pressionar_enter(tv, tv_id, nome, delay=6)
+            pressionar_esquerda(tv, tv_id, nome, delay=10)
+        pressionar_cima(tv, tv_id, nome, delay=10)
+        pressionar_direita(tv, tv_id, nome, delay=10)
+        pressionar_direita(tv, tv_id, nome, delay=10)
+        pressionar_enter(tv, tv_id, nome, delay=10)
+        pressionar_baixo(tv, tv_id, nome, delay=10)
+        pressionar_baixo(tv, tv_id, nome, delay=10)
+        pressionar_baixo(tv, tv_id, nome, delay=10)
+        pressionar_cima(tv, tv_id, nome, delay=10)
+        pressionar_enter(tv, tv_id, nome, delay=10)
         log(f"[{nome}] Sequência finalizada!", "SUCCESS")
         return True
     except Exception as e:
@@ -244,19 +246,20 @@ def sequencia_tv6(tv, tv_id):
     nome = "TV 4 Painel - TV6"
     try:
         log(f"[{nome}] Iniciando sequência...")
-        ligar_tv(tv, tv_id, nome)
-        pressionar_home(tv, tv_id, nome, delay=6)
-        pressionar_esquerda(tv, tv_id, nome, delay=6)
-        pressionar_esquerda(tv, tv_id, nome, delay=6)
-        pressionar_esquerda(tv, tv_id, nome, delay=6)
-        pressionar_cima(tv, tv_id, nome, delay=6)
-        pressionar_direita(tv, tv_id, nome, delay=6)
-        pressionar_direita(tv, tv_id, nome, delay=6)
-        pressionar_baixo(tv, tv_id, nome, delay=6)
-        pressionar_baixo(tv, tv_id, nome, delay=6)
-        pressionar_cima(tv, tv_id, nome, delay=6)
-        pressionar_enter(tv, tv_id, nome, delay=15)
-        pressionar_enter(tv, tv_id, nome, delay=6)
+        ligar_tv(tv, tv_id, nome, delay=10)
+        pressionar_home(tv, tv_id, nome, delay=10)
+        for i in range(4):
+            pressionar_esquerda(tv, tv_id, nome, delay=10)
+        pressionar_cima(tv, tv_id, nome, delay=10)
+        pressionar_direita(tv, tv_id, nome, delay=10)
+        pressionar_direita(tv, tv_id, nome, delay=10)
+        pressionar_enter(tv, tv_id, nome, delay=10)
+        pressionar_baixo(tv, tv_id, nome, delay=10)
+        pressionar_baixo(tv, tv_id, nome, delay=10)
+        pressionar_baixo(tv, tv_id, nome, delay=10)
+        pressionar_cima(tv, tv_id, nome, delay=10)
+        pressionar_enter(tv, tv_id, nome, delay=20)
+        pressionar_enter(tv, tv_id, nome, delay=10)
         log(f"[{nome}] Sequência finalizada!", "SUCCESS")
         return True
     except Exception as e:
